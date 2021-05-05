@@ -1,0 +1,210 @@
+<html>
+
+<head>
+    <style>
+        body {
+            padding-left: 20px;
+			background-color: #091324;
+        }
+
+        #container {
+            padding: 10px;
+        }
+		
+		#buttons {
+            padding: 10px;
+        }
+		
+		.axisWhite line{
+			stroke: white;
+		}
+
+		.axisWhite path{
+			stroke: white;
+		}
+
+		.axisWhite text{
+			fill: white;
+		}  
+    </style>
+</head>
+
+<body>
+    <svg id="container" height="700" width="700" , style="margin-top: 10px" xmlns="http://www.w3.org/2000/svg" version="1.1">
+        <g id="body" style="transform:translate(40px,10px)"></g>
+        <g id="yAxis"></g>
+        <g id="xAxis"></g>
+    <defs>
+		<filter id="glow">
+				<fegaussianblur class="blur" result="coloredBlur" stddeviation="4"></fegaussianblur>
+				<femerge>
+					<femergenode in="coloredBlur"></femergenode>
+          <femergenode in="coloredBlur"></femergenode>
+          <femergenode in="coloredBlur"></femergenode>
+					<femergenode in="SourceGraphic"></femergenode>
+				</femerge>
+			</filter>
+		</defs>
+    </defs>
+</svg>
+    </svg>
+	<div id="buttons">
+        <button class="btn" id="0">2008</button>
+		<button class="btn" id="1">2009</button>
+		<button class="btn" id="2">2010</button>
+		<button class="btn" id="3">2011</button>
+		<button class="btn" id="4">2012</button>
+		<button class="btn" id="5">2013</button>
+		<button class="btn" id="6">2014</button>
+		<button class="btn" id="7">2015</button>
+		<button class="btn" id="8">2016</button>
+		<button class="btn" id="9">2017</button>
+		<button class="btn" id="10">2018</button>
+    </div>
+</body>
+<script src="d3.js"></script>
+<script>
+    let body = d3.select("#body")
+    let container = d3.select("#container")
+
+    let store = {}
+	function loadData() {
+		return Promise.all([
+			d3.csv("lit.csv"),
+			d3.csv("pop.csv"),
+			d3.csv("int.csv")
+		]).then(datasets => {
+			store.lit = datasets[0];
+			store.pop = datasets[1];
+			store.int = datasets[2]
+			return store;
+		})
+	}
+	
+	let result = {}
+    function storeData(data){
+		let result = data.reduce((result, d) => {
+			let currentData = [d.eight, d.nine, d.ten, d.eleven, d.twelve, d.thirteen, d.fourteen, d.fifteen, d.sixteen, d.seventeen, d.eighteen, d.Name]
+			
+			let selected = ["Argentina", "Brazil", "Colombia", "Mexico", "South Africa", "Spain", "Turkey", "Uruguay"]
+			if (selected.includes(d.Name)) {
+				result[d.Name] = currentData
+			}
+			
+			result = Object.keys(result).map(key => result[key])
+
+			return result;
+		}, {})
+
+		return result
+	}
+	
+	function toYearList(dataint, datalit, datapop, year) {
+		let list = []
+		for (let i = 0; i <= 7; i++) {
+			let xData = dataint[i][year]
+			let yData = datalit[i][year]
+			let popData = datapop[i][year]
+			let country = datapop[i][10]
+			let current = [xData, yData, popData, country]
+			list.push(current)
+		}
+		return list
+	}
+	
+	let help = loadData().then(function (d) {
+		let allData = {}
+		allData.lit = storeData(store.lit)
+		allData.pop = storeData(store.pop)
+		allData.int = storeData(store.int)
+		console.log(allData.pop)
+		let buttons = d3.selectAll("button.btn")
+	
+		buttons.on("click", function() {
+		let num = this.id
+		let list = toYearList(allData.int, allData.lit, allData.pop, num)
+		showData(list)
+		console.log(num)
+		
+		})
+		
+		//list2010 = toYearList(allData.int, allData.lit, allData.pop, 10)
+		//showData(list2010)
+	})
+	
+	function findBig(data) {
+		let big = data[0][0]
+		for (let i = 0; i <= 7; i++) {
+			for (let x = 0; x <= 9; x++) {
+				if (data[i][x] > big) {
+					big = data[i][x]
+				}
+			}
+		}
+		console.log(big)
+	}
+	
+	function findSmall(data) {
+		let small = data[0][0]
+		for (let i = 0; i <= 7; i++) {
+			for (let x = 0; x <= 9; x++) {
+				if (data[i][x] < small) {
+					small = data[i][x]
+				}
+			}
+		}
+		console.log(small)
+	}
+	
+	function showData(data) {
+		let bodyWidth = 650;
+        let bodyHeight = 650;
+		
+        let xScale = d3.scaleLinear().range([0, bodyWidth])
+            .domain([5, 90])
+
+        let yScale = d3.scaleLinear().range([bodyHeight, 0])
+            .domain([85, 100])
+			
+		let sizeScale = d3.scaleLinear().range([30, 40])
+            .domain([50477011, 209469333])
+			
+		let colorScale = d3.scaleOrdinal()
+			.range(['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#ffff33','#a65628','#f781bf'])
+			.domain(data.map(d => d[3]))
+
+        let join = body.selectAll("circle")
+            .data(data)
+
+        let newelements = join.enter()
+            .append("circle")
+            .style("fill", d => {
+				return colorScale(d[3])
+			})
+            .style("r", d => {
+				return sizeScale(d[2])
+			})
+			.style("filter", "url(#glow)")
+	
+        join.merge(newelements)
+            .transition()
+            .attr("cx", d => xScale(+d[0]))
+            .attr("cy", d => yScale(+d[1]))
+			
+		let yAxis = d3.axisLeft(yScale);
+        let yAxisGroup = d3.select("#yAxis")
+            .style("transform", "translate(40px, 10px)")
+			.attr("class", "axisWhite")
+            .call(yAxis)
+
+        let xAxis = d3.axisBottom(xScale)
+        let xAxisGroup = d3.select("#xAxis")
+            .style("transform", `translate(40px, ${bodyHeight + 10}px)`)
+			.attr("class", "axisWhite")
+            .call(xAxis)
+			
+	}
+
+</script>
+
+</html>
